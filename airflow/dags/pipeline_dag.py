@@ -34,7 +34,6 @@ with DAG(
     catchup=False,
     tags=["streamflow", "ecommerce", "dbt", "bigquery"],
 ) as dag:
-
     start = PythonOperator(
         task_id="log_start",
         python_callable=log_pipeline_start,

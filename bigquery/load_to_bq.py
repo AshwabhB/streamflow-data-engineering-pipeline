@@ -6,14 +6,19 @@ import tempfile
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import boto3
-
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 
 from config.config import (
-    GCP_PROJECT_ID, GCP_CREDENTIALS_PATH, BIGQUERY_DATASET, BIGQUERY_LOCATION,
-    AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION,
-    S3_BUCKET, S3_PREFIX,
+    AWS_ACCESS_KEY_ID,
+    AWS_REGION,
+    AWS_SECRET_ACCESS_KEY,
+    BIGQUERY_DATASET,
+    BIGQUERY_LOCATION,
+    GCP_CREDENTIALS_PATH,
+    GCP_PROJECT_ID,
+    S3_BUCKET,
+    S3_PREFIX,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -89,8 +94,14 @@ def load_parquet_files_from_s3(client, dataset_ref):
 
 
 if __name__ == "__main__":
-    log.info("Starting BigQuery load: s3://%s/%s → %s.%s.%s",
-             S3_BUCKET, S3_PREFIX, GCP_PROJECT_ID, RAW_DATASET, TABLE_NAME)
+    log.info(
+        "Starting BigQuery load: s3://%s/%s → %s.%s.%s",
+        S3_BUCKET,
+        S3_PREFIX,
+        GCP_PROJECT_ID,
+        RAW_DATASET,
+        TABLE_NAME,
+    )
 
     client = get_bq_client()
     dataset_ref = ensure_dataset(client)

@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime
 
 from faker import Faker
+
 from kafka import KafkaProducer
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -15,8 +16,16 @@ from config.config import KAFKA_BOOTSTRAP_SERVERS, KAFKA_TOPIC, TRANSACTIONS_PER
 fake = Faker()
 
 PRODUCT_CATEGORIES = [
-    "electronics", "clothing", "food", "books", "sports",
-    "home", "beauty", "toys", "automotive", "jewelry",
+    "electronics",
+    "clothing",
+    "food",
+    "books",
+    "sports",
+    "home",
+    "beauty",
+    "toys",
+    "automotive",
+    "jewelry",
 ]
 
 TRANSACTION_STATUSES = ["success", "failed", "pending", "refunded"]

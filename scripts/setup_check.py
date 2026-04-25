@@ -4,9 +4,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import boto3
-
 from google.cloud import bigquery
-from kafka import KafkaConsumer
 
 from config.config import (
     AWS_ACCESS_KEY_ID,
@@ -18,6 +16,7 @@ from config.config import (
     KAFKA_TOPIC,
     S3_BUCKET,
 )
+from kafka import KafkaConsumer
 
 
 def check(label, fn):
@@ -63,8 +62,7 @@ def check_kafka():
     consumer.close()
     if KAFKA_TOPIC not in topics:
         raise ValueError(
-            f"Topic '{KAFKA_TOPIC}' not found on broker. "
-            "Run: python kafka/setup_topics.py"
+            f"Topic '{KAFKA_TOPIC}' not found on broker. " "Run: python kafka/setup_topics.py"
         )
 
 
