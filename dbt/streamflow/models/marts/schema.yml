@@ -1,0 +1,31 @@
+version: 2
+
+models:
+  - name: dim_customers
+    description: "One row per customer with aggregated spend metrics and segment label"
+    columns:
+      - name: customer_id
+        tests:
+          - unique
+          - not_null
+      - name: total_spend
+        tests:
+          - not_null
+      - name: customer_segment
+        tests:
+          - accepted_values:
+              values: ['VIP', 'Regular', 'Casual']
+
+  - name: fct_transactions
+    description: "One row per transaction, enriched with customer data. Partitioned by date."
+    columns:
+      - name: transaction_id
+        tests:
+          - unique
+          - not_null
+      - name: amount
+        tests:
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null

@@ -1,0 +1,143 @@
+# ============================================================
+# Secrets & credentials — NEVER commit
+# ============================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+gcp-service-account.json
+gcp-*.json
+service-account*.json
+credentials.json
+aws-credentials
+.aws/
+
+# ============================================================
+# Personal / unpublished docs
+# ============================================================
+ignore/
+
+# ============================================================
+# Python
+# ============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Type checkers
+.mypy_cache/
+.pyre/
+.pytype/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ============================================================
+# Spark / Delta Lake / runtime artifacts
+# ============================================================
+spark-warehouse/
+metastore_db/
+derby.log
+checkpoints/
+_delta_log/
+*.parquet
+*.crc
+.spark-staging-*/
+
+# ============================================================
+# dbt
+# ============================================================
+dbt/streamflow/target/
+dbt/streamflow/dbt_packages/
+dbt/streamflow/logs/
+dbt/streamflow/.user.yml
+dbt/streamflow/package-lock.yml
+
+# ============================================================
+# Airflow
+# ============================================================
+airflow/logs/
+airflow/plugins/__pycache__/
+airflow/dags/__pycache__/
+airflow.db
+airflow.cfg
+webserver_config.py
+standalone_admin_password.txt
+
+# ============================================================
+# Kafka / Docker
+# ============================================================
+docker-compose.override.yml
+.docker/
+kafka-data/
+zookeeper-data/
+
+# ============================================================
+# Generated / output data
+# ============================================================
+data/
+output/
+logs/
+*.log
+tmp/
+.tmp/
+
+# ============================================================
+# IDE / editor
+# ============================================================
+.vscode/
+.idea/
+.claude/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# ============================================================
+# OS
+# ============================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+ehthumbs.db

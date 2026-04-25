@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  python-lint:
+    name: Lint Python (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install ruff
+        run: pip install ruff==0.4.4
+      - name: ruff check
+        run: ruff check .
+      - name: ruff format --check
+        run: ruff format --check .
+
+  sql-lint:
+    name: Lint dbt SQL (sqlfluff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install sqlfluff
+        run: pip install "sqlfluff==3.0.5"
+      - name: sqlfluff lint
+        run: sqlfluff lint dbt/streamflow/models --dialect bigquery
+
+  dbt-parse:
+    name: dbt parse (validate models compile)
+    runs-on: ubuntu-latest
+    env:
+      GCP_PROJECT_ID: ci-dummy-project
+      BIGQUERY_DATASET: ci_dummy
+      GCP_CREDENTIALS_PATH: /tmp/dummy-key.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install dbt-bigquery
+        run: pip install "dbt-bigquery==1.7.0"
+      - name: Create dummy keyfile
+        run: echo '{}' > /tmp/dummy-key.json
+      - name: dbt parse
+        working-directory: dbt/streamflow
+        run: dbt parse --profiles-dir .
+
+  tests:
+    name: Unit tests (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install test dependencies
+        run: |
+          pip install pytest==8.1.1 faker==24.0.0 kafka-python==2.0.2 python-dotenv==1.0.1
+      - name: Run pytest
+        run: pytest -v
+
+  validate-compose:
+    name: Validate docker-compose files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Kafka compose
+        run: docker compose -f kafka/docker-compose.yml config --quiet
+      - name: Validate Airflow compose
+        run: docker compose -f airflow/docker-compose.yml config --quiet

@@ -1,0 +1,30 @@
+target-version = "py311"
+line-length = 100
+
+extend-exclude = [
+    ".venv",
+    "venv",
+    "ignore",
+    "dbt/streamflow/target",
+    "dbt/streamflow/dbt_packages",
+    "airflow/logs",
+]
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "W",    # pycodestyle warnings
+    "I",    # isort
+    "B",    # flake8-bugbear
+    "UP",   # pyupgrade
+    "SIM",  # flake8-simplify
+]
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "B008",  # function calls in default args (common in Airflow)
+]
+
+[lint.per-file-ignores]
+"airflow/dags/*.py" = ["E402"]  # imports after sys.path tweaks are normal in DAGs
+"**/__init__.py" = ["F401"]

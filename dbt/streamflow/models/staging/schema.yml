@@ -1,0 +1,33 @@
+version: 2
+
+sources:
+  - name: raw
+    database: "{{ env_var('GCP_PROJECT_ID') }}"
+    schema: streamflow_raw
+    description: "Raw transaction data loaded from S3 Delta Lake files"
+    tables:
+      - name: transactions
+        description: "One row per raw transaction event from Kafka/Spark"
+
+models:
+  - name: stg_transactions
+    description: "Cleaned and standardized transaction events"
+    columns:
+      - name: transaction_id
+        description: "Unique transaction identifier"
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        tests:
+          - not_null
+      - name: amount
+        tests:
+          - not_null
+      - name: status
+        tests:
+          - accepted_values:
+              values: ['success', 'failed', 'pending', 'refunded']
+      - name: transaction_date
+        tests:
+          - not_null

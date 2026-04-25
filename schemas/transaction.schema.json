@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AshwabhB/streamflow-data-engineering-pipeline/blob/main/schemas/transaction.schema.json",
+  "title": "Transaction",
+  "description": "A single e-commerce transaction event published to the `transactions` Kafka topic by data_generator/generator.py and consumed by spark/streaming_job.py.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "transaction_id",
+    "customer_id",
+    "customer_name",
+    "customer_email",
+    "customer_country",
+    "amount",
+    "currency",
+    "status",
+    "product_category",
+    "product_name",
+    "quantity",
+    "timestamp",
+    "ip_address",
+    "device_type",
+    "payment_method"
+  ],
+  "properties": {
+    "transaction_id": {
+      "type": "string",
+      "pattern": "^txn_[0-9a-f]{12}$",
+      "description": "Globally unique transaction identifier."
+    },
+    "customer_id": {
+      "type": "string",
+      "pattern": "^cust_[0-9]{5}$",
+      "description": "Stable customer identifier (used as the Kafka message key)."
+    },
+    "customer_name": { "type": "string", "minLength": 1 },
+    "customer_email": {
+      "type": "string",
+      "format": "email"
+    },
+    "customer_country": {
+      "type": "string",
+      "pattern": "^[A-Z]{2}$",
+      "description": "ISO-3166-1 alpha-2 country code."
+    },
+    "amount": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 50000,
+      "description": "Transaction amount in USD."
+    },
+    "currency": {
+      "type": "string",
+      "const": "USD"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["success", "failed", "pending", "refunded"]
+    },
+    "product_category": {
+      "type": "string",
+      "enum": [
+        "electronics",
+        "clothing",
+        "food",
+        "books",
+        "sports",
+        "home",
+        "beauty",
+        "toys",
+        "automotive",
+        "jewelry"
+      ]
+    },
+    "product_name": { "type": "string", "minLength": 1 },
+    "quantity": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Event time in UTC, ISO-8601."
+    },
+    "ip_address": {
+      "type": "string",
+      "format": "ipv4"
+    },
+    "device_type": {
+      "type": "string",
+      "enum": ["mobile", "desktop", "tablet"]
+    },
+    "payment_method": {
+      "type": "string",
+      "enum": ["credit_card", "debit_card", "paypal", "bank_transfer"]
+    }
+  }
+}
