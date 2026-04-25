@@ -3,12 +3,17 @@ import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from delta import configure_spark_with_delta_pip
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
-    col, from_json, to_timestamp,
-    year, month, dayofmonth, hour,
+    col,
+    dayofmonth,
+    from_json,
+    hour,
+    month,
+    to_timestamp,
+    year,
 )
-from delta import configure_spark_with_delta_pip
 
 from config.config import (
     AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION,

@@ -1,11 +1,12 @@
+import logging
 import os
 import sys
-import logging
 import tempfile
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import boto3
+
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 

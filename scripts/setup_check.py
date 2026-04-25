@@ -1,11 +1,23 @@
-"""
-Run this before starting the pipeline to verify all connections are working.
-Usage: python scripts/setup_check.py
-"""
-import sys
 import os
+import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import boto3
+
+from google.cloud import bigquery
+from kafka import KafkaConsumer
+
+from config.config import (
+    AWS_ACCESS_KEY_ID,
+    AWS_REGION,
+    AWS_SECRET_ACCESS_KEY,
+    GCP_CREDENTIALS_PATH,
+    GCP_PROJECT_ID,
+    KAFKA_BOOTSTRAP_SERVERS,
+    KAFKA_TOPIC,
+    S3_BUCKET,
+)
 
 
 def check(label, fn):
@@ -20,26 +32,22 @@ def check(label, fn):
 
 
 def check_env_vars():
-    from config.config import (
-        AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, S3_BUCKET,
-        GCP_PROJECT_ID, GCP_CREDENTIALS_PATH,
-    )
     missing = [
-        name for name, val in {
-            "AWS_ACCESS_KEY_ID":     AWS_ACCESS_KEY_ID,
+        name
+        for name, val in {
+            "AWS_ACCESS_KEY_ID": AWS_ACCESS_KEY_ID,
             "AWS_SECRET_ACCESS_KEY": AWS_SECRET_ACCESS_KEY,
-            "S3_BUCKET":             S3_BUCKET,
-            "GCP_PROJECT_ID":        GCP_PROJECT_ID,
-            "GCP_CREDENTIALS_PATH":  GCP_CREDENTIALS_PATH,
-        }.items() if not val
+            "S3_BUCKET": S3_BUCKET,
+            "GCP_PROJECT_ID": GCP_PROJECT_ID,
+            "GCP_CREDENTIALS_PATH": GCP_CREDENTIALS_PATH,
+        }.items()
+        if not val
     ]
     if missing:
         raise ValueError(f"Missing values in .env: {missing}")
 
 
 def check_aws_s3():
-    import boto3
-    from config.config import AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, S3_BUCKET
     s3 = boto3.client(
         "s3",
         aws_access_key_id=AWS_ACCESS_KEY_ID,
@@ -50,8 +58,6 @@ def check_aws_s3():
 
 
 def check_kafka():
-    from kafka import KafkaConsumer
-    from config.config import KAFKA_BOOTSTRAP_SERVERS, KAFKA_TOPIC
     consumer = KafkaConsumer(bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS, request_timeout_ms=5000)
     topics = consumer.topics()
     consumer.close()
@@ -63,15 +69,12 @@ def check_kafka():
 
 
 def check_gcp_bigquery():
-    from google.cloud import bigquery
-    from config.config import GCP_PROJECT_ID, GCP_CREDENTIALS_PATH
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = GCP_CREDENTIALS_PATH
     client = bigquery.Client(project=GCP_PROJECT_ID)
     list(client.list_datasets())
 
 
 def check_gcp_credentials_file():
-    from config.config import GCP_CREDENTIALS_PATH
     if not os.path.isfile(GCP_CREDENTIALS_PATH):
         raise FileNotFoundError(
             f"GCP key file not found at: {GCP_CREDENTIALS_PATH}\n"
@@ -85,11 +88,11 @@ if __name__ == "__main__":
     print("=" * 50)
 
     results = [
-        check(".env variables loaded",       check_env_vars),
+        check(".env variables loaded", check_env_vars),
         check("GCP credentials file exists", check_gcp_credentials_file),
-        check("AWS S3 bucket accessible",    check_aws_s3),
-        check("Kafka broker + topic ready",  check_kafka),
-        check("GCP BigQuery reachable",      check_gcp_bigquery),
+        check("AWS S3 bucket accessible", check_aws_s3),
+        check("Kafka broker + topic ready", check_kafka),
+        check("GCP BigQuery reachable", check_gcp_bigquery),
     ]
 
     print("=" * 50)

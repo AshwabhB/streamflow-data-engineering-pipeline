@@ -1,10 +1,11 @@
-import sys
 import os
+import sys
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from kafka.admin import KafkaAdminClient, NewTopic
 from kafka.errors import TopicAlreadyExistsError
+
 from config.config import KAFKA_BOOTSTRAP_SERVERS, KAFKA_TOPIC
 
 

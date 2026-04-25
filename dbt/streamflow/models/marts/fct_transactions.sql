@@ -33,7 +33,7 @@ final as (
         t.product_category,
         t.product_name,
         t.quantity,
-        round(t.amount * t.quantity, 2)             as total_line_value,
+        round(t.amount * t.quantity, 2) as total_line_value,
 
         t.device_type,
         t.payment_method,
@@ -42,16 +42,18 @@ final as (
         t.transaction_hour,
         t.event_timestamp,
 
-        case when t.amount > 10000 then true else false end          as is_high_value,
+        case when t.amount > 10000 then true else false end as is_high_value,
         case
             when t.status = 'failed' and c.failure_rate_pct > 20
-            then true else false
-        end                                                          as is_potential_fraud,
+                then true
+            else false
+        end as is_potential_fraud,
 
-        current_timestamp()                                          as dbt_updated_at
+        current_timestamp() as dbt_updated_at
 
-    from transactions t
-    left join customers c using (customer_id)
+    from transactions as t
+    left join customers as c
+        on t.customer_id = c.customer_id
 )
 
 select * from final

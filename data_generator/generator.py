@@ -1,10 +1,10 @@
 import json
-import time
-import random
-import uuid
-import sys
 import os
-from datetime import datetime, timezone
+import random
+import sys
+import time
+import uuid
+from datetime import datetime
 
 from faker import Faker
 from kafka import KafkaProducer
@@ -47,7 +47,7 @@ def generate_transaction():
         "product_category": random.choice(PRODUCT_CATEGORIES),
         "product_name": fake.catch_phrase(),
         "quantity": random.randint(1, 10),
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(datetime.UTC).isoformat(),
         "ip_address": fake.ipv4(),
         "device_type": random.choice(["mobile", "desktop", "tablet"]),
         "payment_method": random.choice(["credit_card", "debit_card", "paypal", "bank_transfer"]),

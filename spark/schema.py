@@ -1,6 +1,9 @@
 from pyspark.sql.types import (
-    StructType, StructField,
-    StringType, DoubleType, IntegerType,
+    DoubleType,
+    IntegerType,
+    StringType,
+    StructField,
+    StructType,
 )
 
 TRANSACTION_SCHEMA = StructType([
