@@ -42,12 +42,11 @@ final as (
         t.transaction_hour,
         t.event_timestamp,
 
-        case when t.amount > 10000 then true else false end as is_high_value,
-        case
-            when t.status = 'failed' and c.failure_rate_pct > 20
-                then true
-            else false
-        end as is_potential_fraud,
+        coalesce(t.amount > 10000, false) as is_high_value,
+        coalesce(
+            t.status = 'failed' and c.failure_rate_pct > 20,
+            false
+        ) as is_potential_fraud,
 
         current_timestamp() as dbt_updated_at
 
