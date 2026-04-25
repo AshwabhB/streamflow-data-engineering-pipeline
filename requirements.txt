@@ -3,7 +3,7 @@ faker==24.0.0
 kafka-python==2.0.2
 
 # Spark + Delta Lake
-pyspark==3.5.1
+pyspark==4.1.1
 delta-spark==3.1.0
 
 # AWS
