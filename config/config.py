@@ -14,6 +14,7 @@ S3_PREFIX = os.getenv("S3_PREFIX", "transactions")
 # Kafka
 KAFKA_BOOTSTRAP_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
 KAFKA_TOPIC = os.getenv("KAFKA_TOPIC", "transactions")
+KAFKA_DLQ_TOPIC = os.getenv("KAFKA_DLQ_TOPIC", "transactions_dlq")
 
 # GCP
 GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID")

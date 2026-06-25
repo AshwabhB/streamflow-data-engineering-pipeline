@@ -7,11 +7,16 @@ from delta import configure_spark_with_delta_pip
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     col,
+    current_timestamp,
     dayofmonth,
     from_json,
     hour,
+    lit,
     month,
+    struct,
+    to_json,
     to_timestamp,
+    when,
     year,
 )
 
@@ -20,6 +25,7 @@ from config.config import (
     AWS_REGION,
     AWS_SECRET_ACCESS_KEY,
     KAFKA_BOOTSTRAP_SERVERS,
+    KAFKA_DLQ_TOPIC,
     KAFKA_TOPIC,
     S3_BUCKET,
     S3_PREFIX,
@@ -59,6 +65,7 @@ def run_streaming_job(spark):
 
     print(f"Reading from Kafka topic: {KAFKA_TOPIC}")
     print(f"Writing Delta Lake to: {s3_path}")
+    print(f"Dead-letter queue topic: {KAFKA_DLQ_TOPIC}")
     print(f"Checkpoint at: {checkpoint_path}\n")
 
     raw_stream = (
@@ -70,24 +77,60 @@ def run_streaming_job(spark):
         .load()
     )
 
+    # Preserve raw_value alongside parsed fields so invalid records carry their
+    # original payload into the DLQ for replay/debugging.
     parsed = (
-        raw_stream.select(from_json(col("value").cast("string"), TRANSACTION_SCHEMA).alias("data"))
-        .select("data.*")
+        raw_stream.select(
+            col("value").cast("string").alias("raw_value"),
+            from_json(col("value").cast("string"), TRANSACTION_SCHEMA).alias("data"),
+        )
+        .select("raw_value", "data.*")
         .withColumn("event_timestamp", to_timestamp(col("timestamp")))
         .withColumn("year", year(col("event_timestamp")))
         .withColumn("month", month(col("event_timestamp")))
         .withColumn("day", dayofmonth(col("event_timestamp")))
         .withColumn("hour", hour(col("event_timestamp")))
-        .filter(col("transaction_id").isNotNull())
-        .filter(col("amount") > 0)
+        .withColumn(
+            "dlq_reason",
+            when(col("transaction_id").isNull(), lit("missing_transaction_id"))
+            .when(col("amount").isNull() | (col("amount") <= 0), lit("invalid_amount"))
+            .otherwise(lit(None).cast("string")),
+        )
     )
 
+    def write_batch(batch_df, batch_id):
+        valid = batch_df.filter(col("dlq_reason").isNull())
+        invalid = batch_df.filter(col("dlq_reason").isNotNull())
+
+        (
+            valid.drop("raw_value", "dlq_reason")
+            .write.format("delta")
+            .mode("append")
+            .option("path", s3_path)
+            .partitionBy("year", "month", "day")
+            .save()
+        )
+
+        if not invalid.isEmpty():
+            dlq_payload = invalid.select(
+                to_json(
+                    struct(
+                        col("raw_value"),
+                        col("dlq_reason").alias("error_reason"),
+                        current_timestamp().alias("error_timestamp"),
+                    )
+                ).alias("value")
+            )
+            (
+                dlq_payload.write.format("kafka")
+                .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP_SERVERS)
+                .option("topic", KAFKA_DLQ_TOPIC)
+                .save()
+            )
+
     query = (
-        parsed.writeStream.format("delta")
-        .outputMode("append")
+        parsed.writeStream.foreachBatch(write_batch)
         .option("checkpointLocation", checkpoint_path)
-        .option("path", s3_path)
-        .partitionBy("year", "month", "day")
         .trigger(processingTime=SPARK_TRIGGER_INTERVAL)
         .start()
     )
