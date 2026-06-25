@@ -28,7 +28,7 @@ def log_pipeline_start(**context):
 with DAG(
     dag_id="streamflow_pipeline",
     default_args=default_args,
-    description="Hourly orchestration: S3 check → dbt → BigQuery load",
+    description="Hourly orchestration: S3 check → BigQuery load → dbt",
     schedule_interval="@hourly",
     start_date=days_ago(1),
     catchup=False,
@@ -77,14 +77,16 @@ with DAG(
         bash_command=f"python {BQ_SCRIPT}",
     )
 
-    # Pipeline dependency chain
+    # Pipeline dependency chain:
+    # S3 data must exist → load raw into BigQuery → dbt staging (reads raw) →
+    # dbt marts (reads staging) → done
     (
         start
         >> check_s3_data
+        >> load_to_bigquery
         >> dbt_deps
         >> dbt_run_staging
         >> dbt_test_staging
         >> dbt_run_marts
         >> dbt_test_marts
-        >> load_to_bigquery
     )
