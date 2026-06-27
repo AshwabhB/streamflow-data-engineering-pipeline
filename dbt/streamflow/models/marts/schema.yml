@@ -29,3 +29,22 @@ models:
       - name: customer_id
         tests:
           - not_null
+
+  - name: fct_daily_revenue
+    description: "Daily revenue rollup by product category. Grain: one row per transaction_date + product_category. Partitioned by date, clustered by category."
+    columns:
+      - name: transaction_date
+        tests:
+          - not_null
+      - name: product_category
+        tests:
+          - not_null
+      - name: total_revenue
+        tests:
+          - not_null
+      - name: order_count
+        tests:
+          - not_null
+      - name: failure_rate_pct
+        tests:
+          - not_null
