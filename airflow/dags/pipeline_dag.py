@@ -77,9 +77,14 @@ with DAG(
         bash_command=f"python {BQ_SCRIPT}",
     )
 
+    dbt_snapshot = BashOperator(
+        task_id="dbt_snapshot",
+        bash_command=f"cd {DBT_DIR} && dbt snapshot",
+    )
+
     # Pipeline dependency chain:
     # S3 data must exist → load raw into BigQuery → dbt staging (reads raw) →
-    # dbt marts (reads staging) → done
+    # dbt marts (reads staging) → snapshot dim_customers for SCD Type 2 history
     (
         start
         >> check_s3_data
@@ -89,4 +94,5 @@ with DAG(
         >> dbt_test_staging
         >> dbt_run_marts
         >> dbt_test_marts
+        >> dbt_snapshot
     )
