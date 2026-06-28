@@ -26,6 +26,7 @@ log = logging.getLogger(__name__)
 
 RAW_DATASET = f"{BIGQUERY_DATASET}_raw"
 TABLE_NAME = "transactions"
+STAGING_TABLE = "transactions_staging"
 
 
 def get_bq_client():
@@ -46,15 +47,22 @@ def ensure_dataset(client):
     return dataset_ref
 
 
-def load_parquet_files_from_s3(client, dataset_ref):
+def reset_staging_table(client):
+    """Drop staging table so each run starts from a clean slate."""
+    staging_ref = f"{GCP_PROJECT_ID}.{RAW_DATASET}.{STAGING_TABLE}"
+    client.delete_table(staging_ref, not_found_ok=True)
+    log.info("Staging table reset: %s", staging_ref)
+    return staging_ref
+
+
+def load_parquet_files_to_staging(client, staging_ref):
+    """Download each Parquet file from S3 and append it to the staging table."""
     s3 = boto3.client(
         "s3",
         aws_access_key_id=AWS_ACCESS_KEY_ID,
         aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
         region_name=AWS_REGION,
     )
-
-    table_ref = f"{GCP_PROJECT_ID}.{RAW_DATASET}.{TABLE_NAME}"
 
     job_config = bigquery.LoadJobConfig(
         source_format=bigquery.SourceFormat.PARQUET,
@@ -75,7 +83,7 @@ def load_parquet_files_from_s3(client, dataset_ref):
                 skipped += 1
                 continue
 
-            log.info("Loading s3://%s/%s → %s", S3_BUCKET, key, table_ref)
+            log.info("Staging s3://%s/%s → %s", S3_BUCKET, key, staging_ref)
 
             with tempfile.NamedTemporaryFile(suffix=".parquet", delete=False) as tmp:
                 s3.download_fileobj(S3_BUCKET, key, tmp)
@@ -83,14 +91,57 @@ def load_parquet_files_from_s3(client, dataset_ref):
 
             try:
                 with open(tmp_path, "rb") as f:
-                    job = client.load_table_from_file(f, table_ref, job_config=job_config)
+                    job = client.load_table_from_file(f, staging_ref, job_config=job_config)
                     job.result()
                 loaded += 1
             finally:
                 os.unlink(tmp_path)
 
-    log.info("Done. Loaded %d Parquet files. Skipped %d non-Parquet objects.", loaded, skipped)
+    log.info(
+        "Staging complete. Loaded %d Parquet files. Skipped %d non-Parquet objects.",
+        loaded,
+        skipped,
+    )
     return loaded
+
+
+def merge_staging_to_main(client, staging_ref):
+    """
+    Upsert from staging into the main transactions table.
+    On first run the main table won't exist yet — copy staging directly.
+    On subsequent runs, MERGE ensures only new transaction_ids are inserted
+    so retried DAG runs never produce duplicate rows.
+    """
+    table_ref = f"{GCP_PROJECT_ID}.{RAW_DATASET}.{TABLE_NAME}"
+
+    try:
+        client.get_table(table_ref)
+        table_exists = True
+    except NotFound:
+        table_exists = False
+
+    if not table_exists:
+        log.info("Main table does not exist yet — copying staging as initial load.")
+        copy_job = client.copy_table(staging_ref, table_ref)
+        copy_job.result()
+        rows = client.get_table(table_ref).num_rows
+        log.info("Initial load complete: %d rows in %s", rows, table_ref)
+    else:
+        merge_sql = f"""
+            MERGE `{table_ref}` AS target
+            USING `{staging_ref}` AS source
+            ON target.transaction_id = source.transaction_id
+            WHEN NOT MATCHED THEN INSERT ROW
+        """
+        job = client.query(merge_sql)
+        job.result()
+        log.info(
+            "MERGE complete: %d new rows inserted, duplicates skipped.",
+            job.num_dml_affected_rows,
+        )
+
+    client.delete_table(staging_ref, not_found_ok=True)
+    log.info("Staging table dropped.")
 
 
 if __name__ == "__main__":
@@ -104,8 +155,14 @@ if __name__ == "__main__":
     )
 
     client = get_bq_client()
-    dataset_ref = ensure_dataset(client)
-    count = load_parquet_files_from_s3(client, dataset_ref)
+    ensure_dataset(client)
 
-    log.info("Load complete. %d files ingested.", count)
-    log.info("Next: run  dbt run  to build staging and mart models.")
+    staging_ref = reset_staging_table(client)
+    loaded = load_parquet_files_to_staging(client, staging_ref)
+
+    if loaded > 0:
+        merge_staging_to_main(client, staging_ref)
+    else:
+        log.info("No Parquet files found — nothing to merge.")
+
+    log.info("Load complete. Next: run  dbt run  to build staging and mart models.")
