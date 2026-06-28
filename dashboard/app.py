@@ -64,6 +64,7 @@ with st.sidebar:
 
 marts = f"{gcp_project}.{dataset_prefix}_marts"
 
+
 # ── BigQuery helpers ──────────────────────────────────────────────────────────
 @st.cache_resource
 def get_client(project: str, creds_path: str) -> bigquery.Client:
@@ -120,13 +121,15 @@ else:
 st.divider()
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "📈 Revenue Trends",
-    "🗂 Category Breakdown",
-    "👥 Top Customers",
-    "💳 Payment Methods",
-    "🏷 Customer Segments",
-])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(
+    [
+        "📈 Revenue Trends",
+        "🗂 Category Breakdown",
+        "👥 Top Customers",
+        "💳 Payment Methods",
+        "🏷 Customer Segments",
+    ]
+)
 
 # ── Tab 1: Revenue Trends ─────────────────────────────────────────────────────
 with tab1:
@@ -206,13 +209,15 @@ with tab2:
             st.plotly_chart(fig2, use_container_width=True)
 
         st.dataframe(
-            cat_df.rename(columns={
-                "product_category": "Category",
-                "revenue": "Revenue ($)",
-                "orders": "Orders",
-                "failure_rate_pct": "Failure Rate (%)",
-                "avg_order_value": "Avg Order ($)",
-            }),
+            cat_df.rename(
+                columns={
+                    "product_category": "Category",
+                    "revenue": "Revenue ($)",
+                    "orders": "Orders",
+                    "failure_rate_pct": "Failure Rate (%)",
+                    "avg_order_value": "Avg Order ($)",
+                }
+            ),
             use_container_width=True,
             hide_index=True,
         )
@@ -228,19 +233,28 @@ with tab3:
         )
 
         st.dataframe(
-            cust_df[[
-                "Segment", "customer_name", "customer_country",
-                "total_spend", "total_transactions",
-                "avg_transaction_value", "failure_rate_pct", "active_days",
-            ]].rename(columns={
-                "customer_name": "Name",
-                "customer_country": "Country",
-                "total_spend": "Lifetime Spend ($)",
-                "total_transactions": "Transactions",
-                "avg_transaction_value": "Avg Value ($)",
-                "failure_rate_pct": "Failure Rate (%)",
-                "active_days": "Active Days",
-            }),
+            cust_df[
+                [
+                    "Segment",
+                    "customer_name",
+                    "customer_country",
+                    "total_spend",
+                    "total_transactions",
+                    "avg_transaction_value",
+                    "failure_rate_pct",
+                    "active_days",
+                ]
+            ].rename(
+                columns={
+                    "customer_name": "Name",
+                    "customer_country": "Country",
+                    "total_spend": "Lifetime Spend ($)",
+                    "total_transactions": "Transactions",
+                    "avg_transaction_value": "Avg Value ($)",
+                    "failure_rate_pct": "Failure Rate (%)",
+                    "active_days": "Active Days",
+                }
+            ),
             use_container_width=True,
             hide_index=True,
         )
@@ -296,14 +310,16 @@ with tab4:
             st.plotly_chart(fig2, use_container_width=True)
 
         st.dataframe(
-            pay_df.rename(columns={
-                "payment_method": "Payment Method",
-                "total_orders": "Total Orders",
-                "failed_orders": "Failed",
-                "failure_rate_pct": "Failure Rate (%)",
-                "total_revenue": "Revenue ($)",
-                "avg_order_value": "Avg Order ($)",
-            }),
+            pay_df.rename(
+                columns={
+                    "payment_method": "Payment Method",
+                    "total_orders": "Total Orders",
+                    "failed_orders": "Failed",
+                    "failure_rate_pct": "Failure Rate (%)",
+                    "total_revenue": "Revenue ($)",
+                    "avg_order_value": "Avg Order ($)",
+                }
+            ),
             use_container_width=True,
             hide_index=True,
         )
@@ -344,12 +360,14 @@ with tab5:
             st.plotly_chart(fig2, use_container_width=True)
 
         st.dataframe(
-            seg_df.rename(columns={
-                "customer_segment": "Segment",
-                "customer_count": "Customers",
-                "segment_revenue": "Total Revenue ($)",
-                "avg_spend": "Avg Spend ($)",
-            }),
+            seg_df.rename(
+                columns={
+                    "customer_segment": "Segment",
+                    "customer_count": "Customers",
+                    "segment_revenue": "Total Revenue ($)",
+                    "avg_spend": "Avg Spend ($)",
+                }
+            ),
             use_container_width=True,
             hide_index=True,
         )
