@@ -71,7 +71,22 @@ jobs:
         run: |
           pip install pytest==8.1.1 faker==24.0.0 kafka-python==2.0.2 python-dotenv==1.0.1
       - name: Run pytest
-        run: pytest -v
+        run: pytest -v --ignore=tests/test_streaming_job.py
+
+  spark-tests:
+    name: Unit tests (pyspark)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install pyspark + test dependencies
+        run: |
+          pip install pytest==8.1.1 pyspark==3.5.1 delta-spark==3.1.0 python-dotenv==1.0.1
+      - name: Run Spark unit tests
+        run: pytest tests/test_streaming_job.py -v
 
   validate-compose:
     name: Validate docker-compose files

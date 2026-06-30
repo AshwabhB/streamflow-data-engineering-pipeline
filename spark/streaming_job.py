@@ -4,7 +4,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from delta import configure_spark_with_delta_pip
-from pyspark.sql import SparkSession
+from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import (
     col,
     current_timestamp,
@@ -59,6 +59,53 @@ def create_spark_session():
     return configure_spark_with_delta_pip(builder).getOrCreate()
 
 
+def parse_transactions(raw_df: DataFrame) -> DataFrame:
+    """
+    Parse raw Kafka `value` bytes into typed transaction columns and flag
+    invalid rows with a dlq_reason. Operates on plain DataFrame transformations
+    only, so it behaves identically on streaming and static DataFrames — this
+    is what makes it unit-testable with a local, non-streaming SparkSession.
+    """
+    return (
+        raw_df.select(
+            col("value").cast("string").alias("raw_value"),
+            from_json(col("value").cast("string"), TRANSACTION_SCHEMA).alias("data"),
+        )
+        .select("raw_value", "data.*")
+        .withColumn("event_timestamp", to_timestamp(col("timestamp")))
+        .withColumn("year", year(col("event_timestamp")))
+        .withColumn("month", month(col("event_timestamp")))
+        .withColumn("day", dayofmonth(col("event_timestamp")))
+        .withColumn("hour", hour(col("event_timestamp")))
+        .withColumn(
+            "dlq_reason",
+            when(col("transaction_id").isNull(), lit("missing_transaction_id"))
+            .when(col("amount").isNull() | (col("amount") <= 0), lit("invalid_amount"))
+            .otherwise(lit(None).cast("string")),
+        )
+    )
+
+
+def split_valid_invalid(parsed_df: DataFrame) -> tuple[DataFrame, DataFrame]:
+    """Split a parsed batch into (valid, invalid) DataFrames based on dlq_reason."""
+    valid = parsed_df.filter(col("dlq_reason").isNull()).drop("raw_value", "dlq_reason")
+    invalid = parsed_df.filter(col("dlq_reason").isNotNull())
+    return valid, invalid
+
+
+def build_dlq_payload(invalid_df: DataFrame) -> DataFrame:
+    """Wrap invalid records into the JSON envelope written to the DLQ topic."""
+    return invalid_df.select(
+        to_json(
+            struct(
+                col("raw_value"),
+                col("dlq_reason").alias("error_reason"),
+                current_timestamp().alias("error_timestamp"),
+            )
+        ).alias("value")
+    )
+
+
 def run_streaming_job(spark):
     s3_path = f"s3a://{S3_BUCKET}/{S3_PREFIX}"
     checkpoint_path = f"{SPARK_CHECKPOINT_DIR}/transactions"
@@ -77,34 +124,13 @@ def run_streaming_job(spark):
         .load()
     )
 
-    # Preserve raw_value alongside parsed fields so invalid records carry their
-    # original payload into the DLQ for replay/debugging.
-    parsed = (
-        raw_stream.select(
-            col("value").cast("string").alias("raw_value"),
-            from_json(col("value").cast("string"), TRANSACTION_SCHEMA).alias("data"),
-        )
-        .select("raw_value", "data.*")
-        .withColumn("event_timestamp", to_timestamp(col("timestamp")))
-        .withColumn("year", year(col("event_timestamp")))
-        .withColumn("month", month(col("event_timestamp")))
-        .withColumn("day", dayofmonth(col("event_timestamp")))
-        .withColumn("hour", hour(col("event_timestamp")))
-        .withColumn(
-            "dlq_reason",
-            when(col("transaction_id").isNull(), lit("missing_transaction_id"))
-            .when(col("amount").isNull() | (col("amount") <= 0), lit("invalid_amount"))
-            .otherwise(lit(None).cast("string")),
-        )
-    )
+    parsed = parse_transactions(raw_stream)
 
     def write_batch(batch_df, batch_id):
-        valid = batch_df.filter(col("dlq_reason").isNull())
-        invalid = batch_df.filter(col("dlq_reason").isNotNull())
+        valid, invalid = split_valid_invalid(batch_df)
 
         (
-            valid.drop("raw_value", "dlq_reason")
-            .write.format("delta")
+            valid.write.format("delta")
             .mode("append")
             .option("path", s3_path)
             .partitionBy("year", "month", "day")
@@ -112,17 +138,9 @@ def run_streaming_job(spark):
         )
 
         if not invalid.isEmpty():
-            dlq_payload = invalid.select(
-                to_json(
-                    struct(
-                        col("raw_value"),
-                        col("dlq_reason").alias("error_reason"),
-                        current_timestamp().alias("error_timestamp"),
-                    )
-                ).alias("value")
-            )
             (
-                dlq_payload.write.format("kafka")
+                build_dlq_payload(invalid)
+                .write.format("kafka")
                 .option("kafka.bootstrap.servers", KAFKA_BOOTSTRAP_SERVERS)
                 .option("topic", KAFKA_DLQ_TOPIC)
                 .save()
